@@ -1,0 +1,69 @@
+package storm.topologies;
+
+import org.apache.storm.Config;
+import org.apache.storm.LocalCluster;
+import org.apache.storm.kafka.bolt.KafkaBolt;
+import org.apache.storm.kafka.bolt.mapper.FieldNameBasedTupleToKafkaMapper;
+import org.apache.storm.kafka.bolt.selector.DefaultTopicSelector;
+import org.apache.storm.kafka.spout.KafkaSpout;
+import org.apache.storm.kafka.spout.KafkaSpoutConfig;
+import org.apache.storm.topology.TopologyBuilder;
+import storm.bolts.KafkaGeoIndexBolt;
+
+import java.util.Properties;
+
+public class KafkaGeofilTopology {
+
+    public static void main(String[] args) throws Exception {
+        Config conf = new Config();
+        conf.setDebug(false);
+
+        TopologyBuilder builder = new TopologyBuilder();
+
+        String topologyName = "geofil-storm-kafka";
+        if (args != null && args.length > 0) {
+            topologyName = args[0];
+        }
+
+        // propsi se mogu napisati i s ProducerConfig klasom, vidi kafka-client-examples u stormu
+        Properties props = new Properties();
+        props.put("bootstrap.servers", "localhost:9092");
+        props.put("acks", "1");
+        props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+        props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+
+        KafkaSpout kafkaSpout =
+                new KafkaSpout<>(KafkaSpoutConfig.builder("127.0.0.1:9092", "geofil_publications_1").build());
+
+
+        // Potrebno je implementirati sučelje TuppleToKafkaMapper s dvije metode:
+        // K getKeyFromTuple(Tuple/TridentTuple tuple);
+        // V getMessageFromTuple(Tuple/TridentTuple tuple);
+        //
+        // S FieldNameBasedTupleToKafkaMapper implementacijom moram koristiti
+        // jedan filed kao key i jedan kao value.
+        //
+        // FieldNameBasedTupleToKafkaMapper defaultno traži da se fieldovi zovu "key" i "message", ali to je moguće
+        // i overridati u konstruktoru (samo pukneš 2 parametra u new FieldNameBasedTupleToKafkaMapper()).
+        // To ostvariš u boltu prije koji šalje podatke u takvom obliku
+
+        KafkaBolt kafkaBolt = new KafkaBolt<>()
+                .withProducerProperties(props)
+                .withTopicSelector(new DefaultTopicSelector("geofil_results"))
+                .withTupleToKafkaMapper(new FieldNameBasedTupleToKafkaMapper());
+
+        builder.setSpout("kafkaSpout", kafkaSpout, 1);
+        builder.setBolt("geoIndexBolt", new KafkaGeoIndexBolt(), 1).shuffleGrouping("kafkaSpout");
+        builder.setBolt("kafkaBolt", kafkaBolt, 1).shuffleGrouping("geoIndexBolt");
+
+        LocalCluster cluster = new LocalCluster();
+        cluster.submitTopology(topologyName, conf, builder.createTopology());
+
+//        try {
+//            StormSubmitter.submitTopology(topologyName, conf, builder.createTopology());
+//        }
+//        catch(Exception ex){
+//            ex.printStackTrace();
+//        }
+    }
+}
