@@ -16,7 +16,7 @@ import java.util.stream.Stream;
 
 public class PublicationsProducer {
 
-    public static final String topicName = "geofil_publications_1";
+    public static final String topicName = "geofil_publications";
     public static AtomicInteger seq = new AtomicInteger(0);
 
     public static void main(String args[]) throws IOException {

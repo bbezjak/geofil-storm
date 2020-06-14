@@ -1,2 +1,9 @@
-gridType: VORONOI
+partitionType: EQUALGRID
+# EQUALGRID HILBERT RTREE VORONOI QUADTREE KDBTREE
 indexType: QUAD_TREE
+# STR_TREE QUAD_TREE
+partitions: 50
+decimals: 19
+
+#kafka:
+

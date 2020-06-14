@@ -1,5 +1,6 @@
 package storm.topologies;
 
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.storm.Config;
 import org.apache.storm.LocalCluster;
 import org.apache.storm.kafka.bolt.KafkaBolt;
@@ -9,7 +10,9 @@ import org.apache.storm.kafka.spout.KafkaSpout;
 import org.apache.storm.kafka.spout.KafkaSpoutConfig;
 import org.apache.storm.topology.TopologyBuilder;
 import storm.bolts.KafkaGeoIndexBolt;
+import storm.util.TopologyConfig;
 
+import java.io.IOException;
 import java.util.Properties;
 
 public class KafkaGeofilTopology {
@@ -25,6 +28,13 @@ public class KafkaGeofilTopology {
             topologyName = args[0];
         }
 
+        TopologyConfig topologyConfig;
+        try {
+            topologyConfig = TopologyConfig.create();
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read configuration");
+        }
+
         // propsi se mogu napisati i s ProducerConfig klasom, vidi kafka-client-examples u stormu
         Properties props = new Properties();
         props.put("bootstrap.servers", "localhost:9092");
@@ -33,7 +43,10 @@ public class KafkaGeofilTopology {
         props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
 
         KafkaSpout kafkaSpout =
-                new KafkaSpout<>(KafkaSpoutConfig.builder("127.0.0.1:9092", "geofil_publications_1").build());
+                new KafkaSpout<>(
+                        KafkaSpoutConfig.builder("127.0.0.1:9092", "geofil_publications")
+                                .setProp(ConsumerConfig.GROUP_ID_CONFIG, "kafkaSpout")
+                                .build());
 
 
         // Potrebno je implementirati sučelje TuppleToKafkaMapper s dvije metode:
@@ -53,7 +66,7 @@ public class KafkaGeofilTopology {
                 .withTupleToKafkaMapper(new FieldNameBasedTupleToKafkaMapper());
 
         builder.setSpout("kafkaSpout", kafkaSpout, 1);
-        builder.setBolt("geoIndexBolt", new KafkaGeoIndexBolt(), 1).shuffleGrouping("kafkaSpout");
+        builder.setBolt("geoIndexBolt", new KafkaGeoIndexBolt(topologyConfig), 1).shuffleGrouping("kafkaSpout");
         builder.setBolt("kafkaBolt", kafkaBolt, 1).shuffleGrouping("geoIndexBolt");
 
         LocalCluster cluster = new LocalCluster();

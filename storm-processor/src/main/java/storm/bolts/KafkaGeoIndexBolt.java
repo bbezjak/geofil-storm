@@ -20,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 import storm.util.KafkaTuple;
+import storm.util.TopologyConfig;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -42,14 +43,23 @@ public class KafkaGeoIndexBolt extends BaseRichBolt {
     private long processedPublications = 0;
     private long processingTime = 0;
 
-    private static final int NUMBER_OF_PARTITIONS = 20;
-    private static final int DECIMALS = 19;
-    private static final GridType GRID_TYPE = GridType.VORONOI;
+    private static int NUMBER_OF_PARTITIONS;
+    private static int DECIMALS = 19;
+    private static GridType GRID_TYPE;
+    private static SpatialIndexFactory.IndexType INDEX_TYPE;
+    private static String subscriptionsLocation = "storm-processor/subscriptions19.json";
 
     private List<Geometry> subscriptions;
     private GeometryJSON gj;
     SpatialPartitioner partitioner;
     ArrayList<SpatialIndex> partitionedIndex;
+
+    public KafkaGeoIndexBolt(TopologyConfig topologyConfig) {
+        NUMBER_OF_PARTITIONS = topologyConfig.getPartitions();
+        DECIMALS = topologyConfig.getDecimals();
+        GRID_TYPE = topologyConfig.getPartitionType();
+        INDEX_TYPE = topologyConfig.getIndexType();
+    }
 
     @Override
     public void prepare(Map map, TopologyContext topologyContext, OutputCollector outputCollector) {
@@ -57,7 +67,7 @@ public class KafkaGeoIndexBolt extends BaseRichBolt {
 
         Stream<String> lines = null;
         try {
-            lines = Files.lines(Paths.get("storm-processor/subscriptions19.json"));
+            lines = Files.lines(Paths.get(subscriptionsLocation));
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -68,7 +78,7 @@ public class KafkaGeoIndexBolt extends BaseRichBolt {
         //parse and add subscriptions to list
         lines.map(unchecked(line -> gj.read(line))).forEach(geometry
                 -> subscriptions.add(geometry));
-        System.out.println("Number of added subscriptions: " + subscriptions.size());
+        System.out.println("Storm - Number of added subscriptions: " + subscriptions.size());
 
         //create list of subscription envelopes
         List<Envelope> subscriptionEnvelopes = new LinkedList<>();
@@ -84,7 +94,7 @@ public class KafkaGeoIndexBolt extends BaseRichBolt {
         }
 
         //create a partitioned index (i.e. a spatial index for each partition)
-        partitionedIndex = PartitionedSpatialIndexFactory.create(SpatialIndexFactory.IndexType.STR_TREE, subscriptions, partitioner);
+        partitionedIndex = PartitionedSpatialIndexFactory.create(INDEX_TYPE, subscriptions, partitioner);
     }
 
     @Override
@@ -143,7 +153,6 @@ public class KafkaGeoIndexBolt extends BaseRichBolt {
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
-        //outputFieldsDeclarer.declare(new Fields("publication", "matched", "avgProcessingTime"));
         outputFieldsDeclarer.declare(new Fields("key", "message"));
     }
 }
