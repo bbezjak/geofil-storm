@@ -24,6 +24,7 @@ import storm.util.TopologyConfig;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -43,11 +44,11 @@ public class KafkaGeoIndexBolt extends BaseRichBolt {
     private long processedPublications = 0;
     private long processingTime = 0;
 
-    private static int NUMBER_OF_PARTITIONS;
-    private static int DECIMALS = 19;
-    private static GridType GRID_TYPE;
-    private static SpatialIndexFactory.IndexType INDEX_TYPE;
-    private static String subscriptionsLocation = "subscriptions19.json";
+    private int NUMBER_OF_PARTITIONS;
+    private int DECIMALS = 19;
+    private GridType GRID_TYPE;
+    private SpatialIndexFactory.IndexType INDEX_TYPE;
+    private String subscriptionLocation;
 
     private List<Geometry> subscriptions;
     private GeometryJSON gj;
@@ -55,10 +56,17 @@ public class KafkaGeoIndexBolt extends BaseRichBolt {
     ArrayList<SpatialIndex> partitionedIndex;
 
     public KafkaGeoIndexBolt(TopologyConfig topologyConfig) {
+
+        System.out.println("\n\n\nTopologyConfig: " + topologyConfig.toString() + "\n\n\n");
+
         NUMBER_OF_PARTITIONS = topologyConfig.getPartitions();
         DECIMALS = topologyConfig.getDecimals();
         GRID_TYPE = topologyConfig.getPartitionType();
         INDEX_TYPE = topologyConfig.getIndexType();
+        subscriptionLocation = topologyConfig.getSubscriptionLocation();
+
+        System.out.println("\n\n\nsubscriptionLocation: " + subscriptionLocation + "\n\n\n");
+
     }
 
     @Override
@@ -67,17 +75,23 @@ public class KafkaGeoIndexBolt extends BaseRichBolt {
 
         Stream<String> lines = null;
         try {
-            lines = Files.lines(Paths.get(subscriptionsLocation));
-        } catch (IOException e) {
+            System.out.println("\n\n\nprocessedPublications: " + processedPublications + "\n\n\n");
+            System.out.println("\n\n\nprocessingTime: " + processingTime + "\n\n\n");
+            System.out.println("\n\n\nSubscription path: " + subscriptionLocation + "\n\n\n");
+            Path path = Paths.get(subscriptionLocation);
+            System.out.println(path);
+            lines = Files.lines(path);
+        } catch (IOException | NullPointerException e) {
+            System.err.println("\n\n\nNesto Path " + subscriptionLocation + " jebe\n\n\n");
             e.printStackTrace();
         }
 
         subscriptions = new LinkedList<>();
         gj = new GeometryJSON(19);
 
+        AtomicInteger test = new AtomicInteger();
         //parse and add subscriptions to list
-        lines.map(unchecked(line -> gj.read(line))).forEach(geometry
-                -> subscriptions.add(geometry));
+        lines.map(unchecked(line -> gj.read(line))).forEach(geometry -> subscriptions.add(geometry));
         System.out.println("Storm - Number of added subscriptions: " + subscriptions.size());
 
         //create list of subscription envelopes

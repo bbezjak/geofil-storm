@@ -3,6 +3,7 @@ package storm.topologies;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.storm.Config;
 import org.apache.storm.LocalCluster;
+import org.apache.storm.StormSubmitter;
 import org.apache.storm.kafka.bolt.KafkaBolt;
 import org.apache.storm.kafka.bolt.mapper.FieldNameBasedTupleToKafkaMapper;
 import org.apache.storm.kafka.bolt.selector.DefaultTopicSelector;
@@ -13,7 +14,13 @@ import storm.bolts.KafkaGeoIndexBolt;
 import storm.util.TopologyConfig;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Properties;
+import java.util.stream.Stream;
+
+import static storm.util.ThrowingFunction.unchecked;
 
 public class KafkaGeofilTopology {
 
@@ -69,14 +76,16 @@ public class KafkaGeofilTopology {
         builder.setBolt("geoIndexBolt", new KafkaGeoIndexBolt(topologyConfig), 1).shuffleGrouping("kafkaSpout");
         builder.setBolt("kafkaBolt", kafkaBolt, 1).shuffleGrouping("geoIndexBolt");
 
-        LocalCluster cluster = new LocalCluster();
-        cluster.submitTopology(topologyName, conf, builder.createTopology());
-
-//        try {
-//            StormSubmitter.submitTopology(topologyName, conf, builder.createTopology());
-//        }
-//        catch(Exception ex){
-//            ex.printStackTrace();
-//        }
+        if(topologyConfig.isLocal()) {
+            LocalCluster cluster = new LocalCluster();
+            cluster.submitTopology(topologyName, conf, builder.createTopology());
+        } else {
+            try {
+                StormSubmitter.submitTopology(topologyName, conf, builder.createTopology());
+            }
+            catch(Exception ex){
+                ex.printStackTrace();
+            }
+        }
     }
 }

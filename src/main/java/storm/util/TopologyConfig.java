@@ -15,26 +15,35 @@ public class TopologyConfig {
     SpatialIndexFactory.IndexType indexType;
     int partitions;
     int decimals;
+    boolean local;
+
+    String publicationLocation;
+    String subscriptionLocation;
 
     public static TopologyConfig create() throws IOException {
         String dir = System.getProperty("user.dir");
-        File config = Paths.get(dir + File.separator + "config.yaml").toFile();
+        String path = dir + File.separator + "config.yaml";
+        System.out.println("Reading config from " + path);
+        File config = Paths.get(path).toFile();
 
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         TopologyConfig topologyConfig = mapper.readValue(config, TopologyConfig.class);
 
+        System.out.println(topologyConfig.toString());
         return topologyConfig;
     }
 
     public TopologyConfig() {
     }
 
-    public TopologyConfig(GridType partitionType,
-                          SpatialIndexFactory.IndexType indexType, int partitions, int decimals) {
+    public TopologyConfig(GridType partitionType, SpatialIndexFactory.IndexType indexType, int partitions, int decimals, boolean local, String publicationLocation, String subscriptionLocation) {
         this.partitionType = partitionType;
         this.indexType = indexType;
         this.partitions = partitions;
         this.decimals = decimals;
+        this.local = local;
+        this.publicationLocation = publicationLocation;
+        this.subscriptionLocation = subscriptionLocation;
     }
 
     public GridType getPartitionType() {
@@ -67,5 +76,42 @@ public class TopologyConfig {
 
     public void setDecimals(int decimals) {
         this.decimals = decimals;
+    }
+
+    public boolean isLocal() {
+        return local;
+    }
+
+    public void setLocal(boolean local) {
+        this.local = local;
+    }
+
+    public String getPublicationLocation() {
+        return publicationLocation;
+    }
+
+    public void setPublicationLocation(String publicationLocation) {
+        this.publicationLocation = publicationLocation;
+    }
+
+    public String getSubscriptionLocation() {
+        return subscriptionLocation;
+    }
+
+    public void setSubscriptionLocation(String subscriptionLocation) {
+        this.subscriptionLocation = subscriptionLocation;
+    }
+
+    @Override
+    public String toString() {
+        return "TopologyConfig{" +
+                "partitionType=" + partitionType +
+                ", indexType=" + indexType +
+                ", partitions=" + partitions +
+                ", decimals=" + decimals +
+                ", local=" + local +
+                ", publicationLocation='" + publicationLocation + '\'' +
+                ", subscriptionLocation='" + subscriptionLocation + '\'' +
+                '}';
     }
 }
