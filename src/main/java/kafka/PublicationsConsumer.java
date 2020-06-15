@@ -1,3 +1,5 @@
+package kafka;
+
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.KafkaStreams;
@@ -61,7 +63,7 @@ public class PublicationsConsumer {
 
         FileWriter fw = null;
         try {
-            fw = new FileWriter("kafka_output.txt", true);
+            fw = new FileWriter("kafka_output_P_EQUALGRID_I_QUAD_TREE_100.txt", true);
         } catch (IOException e) {
             e.printStackTrace();
         }

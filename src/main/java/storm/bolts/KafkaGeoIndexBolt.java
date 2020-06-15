@@ -47,7 +47,7 @@ public class KafkaGeoIndexBolt extends BaseRichBolt {
     private static int DECIMALS = 19;
     private static GridType GRID_TYPE;
     private static SpatialIndexFactory.IndexType INDEX_TYPE;
-    private static String subscriptionsLocation = "storm-processor/subscriptions19.json";
+    private static String subscriptionsLocation = "subscriptions19.json";
 
     private List<Geometry> subscriptions;
     private GeometryJSON gj;
