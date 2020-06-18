@@ -11,47 +11,41 @@ import java.nio.file.Paths;
 
 public class TopologyConfig {
 
-    GridType partitionType;
+    GridType gridType;
     SpatialIndexFactory.IndexType indexType;
-    int partitions;
-    int decimals;
-    boolean local;
+    int partitionsNumber;
 
-    String publicationLocation;
+    String kafkaInBroker;
+    String kafkaInTopic;
+
+    String kafkaOutBroker;
+    String kafkaOutTopic;
+
+    boolean fromHdfs;
+    boolean local;
     String subscriptionLocation;
 
-    public static TopologyConfig create() throws IOException {
-        String dir = System.getProperty("user.dir");
-        String path = dir + File.separator + "config.yaml";
+    int decimals;
+
+    public static TopologyConfig create(String path) throws IOException {
+
         System.out.println("Reading config from " + path);
         File config = Paths.get(path).toFile();
 
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         TopologyConfig topologyConfig = mapper.readValue(config, TopologyConfig.class);
 
+        System.out.println("Used configuration:");
         System.out.println(topologyConfig.toString());
         return topologyConfig;
     }
 
-    public TopologyConfig() {
+    public GridType getGridType() {
+        return gridType;
     }
 
-    public TopologyConfig(GridType partitionType, SpatialIndexFactory.IndexType indexType, int partitions, int decimals, boolean local, String publicationLocation, String subscriptionLocation) {
-        this.partitionType = partitionType;
-        this.indexType = indexType;
-        this.partitions = partitions;
-        this.decimals = decimals;
-        this.local = local;
-        this.publicationLocation = publicationLocation;
-        this.subscriptionLocation = subscriptionLocation;
-    }
-
-    public GridType getPartitionType() {
-        return partitionType;
-    }
-
-    public void setPartitionType(GridType partitionType) {
-        this.partitionType = partitionType;
+    public void setGridType(GridType gridType) {
+        this.gridType = gridType;
     }
 
     public SpatialIndexFactory.IndexType getIndexType() {
@@ -62,20 +56,52 @@ public class TopologyConfig {
         this.indexType = indexType;
     }
 
-    public int getPartitions() {
-        return partitions;
+    public int getPartitionsNumber() {
+        return partitionsNumber;
     }
 
-    public void setPartitions(int partitions) {
-        this.partitions = partitions;
+    public void setPartitionsNumber(int partitionsNumber) {
+        this.partitionsNumber = partitionsNumber;
     }
 
-    public int getDecimals() {
-        return decimals;
+    public String getKafkaInBroker() {
+        return kafkaInBroker;
     }
 
-    public void setDecimals(int decimals) {
-        this.decimals = decimals;
+    public void setKafkaInBroker(String kafkaInBroker) {
+        this.kafkaInBroker = kafkaInBroker;
+    }
+
+    public String getKafkaInTopic() {
+        return kafkaInTopic;
+    }
+
+    public void setKafkaInTopic(String kafkaInTopic) {
+        this.kafkaInTopic = kafkaInTopic;
+    }
+
+    public String getKafkaOutBroker() {
+        return kafkaOutBroker;
+    }
+
+    public void setKafkaOutBroker(String kafkaOutBroker) {
+        this.kafkaOutBroker = kafkaOutBroker;
+    }
+
+    public String getKafkaOutTopic() {
+        return kafkaOutTopic;
+    }
+
+    public void setKafkaOutTopic(String kafkaOutTopic) {
+        this.kafkaOutTopic = kafkaOutTopic;
+    }
+
+    public boolean isFromHdfs() {
+        return fromHdfs;
+    }
+
+    public void setFromHdfs(boolean fromHdfs) {
+        this.fromHdfs = fromHdfs;
     }
 
     public boolean isLocal() {
@@ -86,14 +112,6 @@ public class TopologyConfig {
         this.local = local;
     }
 
-    public String getPublicationLocation() {
-        return publicationLocation;
-    }
-
-    public void setPublicationLocation(String publicationLocation) {
-        this.publicationLocation = publicationLocation;
-    }
-
     public String getSubscriptionLocation() {
         return subscriptionLocation;
     }
@@ -102,16 +120,27 @@ public class TopologyConfig {
         this.subscriptionLocation = subscriptionLocation;
     }
 
+    public int getDecimals() {
+        return decimals;
+    }
+
+    public void setDecimals(int decimals) {
+        this.decimals = decimals;
+    }
+
     @Override
     public String toString() {
         return "TopologyConfig{" +
-                "partitionType=" + partitionType +
+                "partitionType=" + gridType +
                 ", indexType=" + indexType +
-                ", partitions=" + partitions +
-                ", decimals=" + decimals +
-                ", local=" + local +
-                ", publicationLocation='" + publicationLocation + '\'' +
+                ", partitions=" + partitionsNumber +
+                ", kafkaInBroker='" + kafkaInBroker + '\'' +
+                ", kafkaInTopic='" + kafkaInTopic + '\'' +
+                ", kafkaOutBroker='" + kafkaOutBroker + '\'' +
+                ", kafkaOutTopic='" + kafkaOutTopic + '\'' +
+                ", fromHdfs=" + fromHdfs +
                 ", subscriptionLocation='" + subscriptionLocation + '\'' +
+                ", decimals=" + decimals +
                 '}';
     }
 }

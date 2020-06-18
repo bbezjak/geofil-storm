@@ -1,0 +1,22 @@
+gridType: EQUALGRID
+# EQUALGRID HILBERT RTREE VORONOI QUADTREE KDBTREE
+indexType: QUAD_TREE
+# STR_TREE QUAD_TREE
+partitionsNumber: 1
+
+#kafka:
+#kafkaInBroker: "localhost:9092"
+kafkaInBroker: "10.19.8.217:9092"
+kafkaInTopic: geofil-data
+
+#kafkaOutBroker: "localhost:9092"
+kafkaOutBroker: "10.19.8.217:9092"
+kafkaOutTopic: geofil-data-storm
+
+fromHdfs: true
+local: false
+
+#subscriptionLocation: D:\projects\diplomski\geofil-storm\subscriptions19.json
+subscriptionLocation: data/subscriptions19.json
+
+decimals: 19  #do not change unless file with data are changed

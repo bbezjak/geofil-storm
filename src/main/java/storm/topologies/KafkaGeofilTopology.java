@@ -14,47 +14,37 @@ import storm.bolts.KafkaGeoIndexBolt;
 import storm.util.TopologyConfig;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Properties;
-import java.util.stream.Stream;
-
-import static storm.util.ThrowingFunction.unchecked;
 
 public class KafkaGeofilTopology {
 
     public static void main(String[] args) throws Exception {
         Config conf = new Config();
-        conf.setDebug(false);
+        conf.setDebug(true);
 
         TopologyBuilder builder = new TopologyBuilder();
 
         String topologyName = "geofil-storm-kafka";
-        if (args != null && args.length > 0) {
-            topologyName = args[0];
-        }
 
         TopologyConfig topologyConfig;
         try {
-            topologyConfig = TopologyConfig.create();
+            topologyConfig = TopologyConfig.create(args[0]);
         } catch (IOException e) {
             throw new RuntimeException("Failed to read configuration");
         }
 
-        // propsi se mogu napisati i s ProducerConfig klasom, vidi kafka-client-examples u stormu
-        Properties props = new Properties();
-        props.put("bootstrap.servers", "localhost:9092");
-        props.put("acks", "1");
-        props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
-        props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
-
         KafkaSpout kafkaSpout =
                 new KafkaSpout<>(
-                        KafkaSpoutConfig.builder("127.0.0.1:9092", "geofil_publications")
+                        KafkaSpoutConfig.builder(topologyConfig.getKafkaInBroker(), topologyConfig.getKafkaInTopic())
                                 .setProp(ConsumerConfig.GROUP_ID_CONFIG, "kafkaSpout")
                                 .build());
 
+        // propsi se mogu napisati i s ProducerConfig klasom, vidi kafka-client-examples u stormu
+        Properties props = new Properties();
+        props.put("bootstrap.servers", topologyConfig.getKafkaOutBroker());
+        props.put("acks", "1");
+        props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+        props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
 
         // Potrebno je implementirati sučelje TuppleToKafkaMapper s dvije metode:
         // K getKeyFromTuple(Tuple/TridentTuple tuple);
@@ -69,7 +59,7 @@ public class KafkaGeofilTopology {
 
         KafkaBolt kafkaBolt = new KafkaBolt<>()
                 .withProducerProperties(props)
-                .withTopicSelector(new DefaultTopicSelector("geofil_results"))
+                .withTopicSelector(new DefaultTopicSelector(topologyConfig.getKafkaOutTopic()))
                 .withTupleToKafkaMapper(new FieldNameBasedTupleToKafkaMapper());
 
         builder.setSpout("kafkaSpout", kafkaSpout, 1);
@@ -77,6 +67,7 @@ public class KafkaGeofilTopology {
         builder.setBolt("kafkaBolt", kafkaBolt, 1).shuffleGrouping("geoIndexBolt");
 
         if(topologyConfig.isLocal()) {
+            System.out.println("Running topology in local cluster");
             LocalCluster cluster = new LocalCluster();
             cluster.submitTopology(topologyName, conf, builder.createTopology());
         } else {

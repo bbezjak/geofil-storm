@@ -22,7 +22,11 @@ import scala.Tuple2;
 import storm.util.KafkaTuple;
 import storm.util.TopologyConfig;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -31,6 +35,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 
 import static storm.util.ThrowingFunction.unchecked;
 
@@ -44,29 +51,37 @@ public class KafkaGeoIndexBolt extends BaseRichBolt {
     private long processedPublications = 0;
     private long processingTime = 0;
 
-    private int NUMBER_OF_PARTITIONS;
-    private int DECIMALS = 19;
-    private GridType GRID_TYPE;
-    private SpatialIndexFactory.IndexType INDEX_TYPE;
-    private String subscriptionLocation;
-
     private List<Geometry> subscriptions;
     private GeometryJSON gj;
-    SpatialPartitioner partitioner;
-    ArrayList<SpatialIndex> partitionedIndex;
+    private SpatialPartitioner partitioner;
+    private ArrayList<SpatialIndex> partitionedIndex;
+
+    GridType gridType;
+    SpatialIndexFactory.IndexType indexType;
+    int partitionsNumber;
+
+    String kafkaInBroker;
+    String kafkaInTopic;
+
+    String kafkaOutBroker;
+    String kafkaOutTopic;
+
+    boolean fromHdfs;
+    String subscriptionLocation;
+
+    int decimals;
 
     public KafkaGeoIndexBolt(TopologyConfig topologyConfig) {
-
-        System.out.println("\n\n\nTopologyConfig: " + topologyConfig.toString() + "\n\n\n");
-
-        NUMBER_OF_PARTITIONS = topologyConfig.getPartitions();
-        DECIMALS = topologyConfig.getDecimals();
-        GRID_TYPE = topologyConfig.getPartitionType();
-        INDEX_TYPE = topologyConfig.getIndexType();
+        gridType = topologyConfig.getGridType();
+        indexType = topologyConfig.getIndexType();
+        partitionsNumber = topologyConfig.getPartitionsNumber();
+        kafkaInBroker = topologyConfig.getKafkaInBroker();
+        kafkaInTopic = topologyConfig.getKafkaInTopic();
+        kafkaOutBroker = topologyConfig.getKafkaOutBroker();
+        kafkaOutTopic = topologyConfig.getKafkaOutTopic();
+        fromHdfs = topologyConfig.isFromHdfs();
         subscriptionLocation = topologyConfig.getSubscriptionLocation();
-
-        System.out.println("\n\n\nsubscriptionLocation: " + subscriptionLocation + "\n\n\n");
-
+        decimals = topologyConfig.getDecimals();
     }
 
     @Override
@@ -75,14 +90,37 @@ public class KafkaGeoIndexBolt extends BaseRichBolt {
 
         Stream<String> lines = null;
         try {
-            System.out.println("\n\n\nprocessedPublications: " + processedPublications + "\n\n\n");
-            System.out.println("\n\n\nprocessingTime: " + processingTime + "\n\n\n");
-            System.out.println("\n\n\nSubscription path: " + subscriptionLocation + "\n\n\n");
-            Path path = Paths.get(subscriptionLocation);
-            System.out.println(path);
-            lines = Files.lines(path);
-        } catch (IOException | NullPointerException e) {
-            System.err.println("\n\n\nNesto Path " + subscriptionLocation + " jebe\n\n\n");
+            if(!fromHdfs) {
+                System.out.println("Reading from local " + subscriptionLocation);
+                Path path = Paths.get(subscriptionLocation);
+                lines = Files.lines(path);
+            } else {
+                System.out.println("Reading from hdfs " + subscriptionLocation);
+                Configuration conf = new Configuration();
+                conf.addResource(new org.apache.hadoop.fs.Path("/etc/hadoop/conf/core-site.xml"));
+                conf.addResource(new org.apache.hadoop.fs.Path("/etc/hadoop/conf/hdfs-site.xml"));
+                FileSystem hdfs = FileSystem.get(new URI("hdfs://10.19.8.199:8020"), conf);
+                org.apache.hadoop.fs.Path path =
+                        new org.apache.hadoop.fs.Path(subscriptionLocation);
+                BufferedReader br = new BufferedReader(new InputStreamReader(hdfs.open(path)));
+                List<String> readLines = new LinkedList<>();
+                try {
+                    String line;
+                    line=br.readLine();
+                    while (line != null){
+                        readLines.add(line);
+                        // be sure to read the next line otherwise you'll get an infinite loop
+                        line = br.readLine();
+                    }
+                    System.out.println("Read publication: " + readLines.size());
+                    lines = readLines.stream();
+                } finally {
+                    // you should close out the BufferedReader
+                    br.close();
+                }
+            }
+
+        } catch (IOException | NullPointerException | URISyntaxException e) {
             e.printStackTrace();
         }
 
@@ -102,13 +140,14 @@ public class KafkaGeoIndexBolt extends BaseRichBolt {
 
         //create a partitioner using subscriptions envelopes
         try {
-            partitioner = SpatialPartitionerFactory.create(GRID_TYPE, NUMBER_OF_PARTITIONS, subscriptionEnvelopes);
+            partitioner = SpatialPartitionerFactory
+                            .create(gridType, partitionsNumber, subscriptionEnvelopes);
         } catch (Exception e) {
             e.printStackTrace();
         }
 
         //create a partitioned index (i.e. a spatial index for each partition)
-        partitionedIndex = PartitionedSpatialIndexFactory.create(INDEX_TYPE, subscriptions, partitioner);
+        partitionedIndex = PartitionedSpatialIndexFactory.create(indexType, subscriptions, partitioner);
     }
 
     @Override
@@ -123,7 +162,7 @@ public class KafkaGeoIndexBolt extends BaseRichBolt {
             // begin processing
             long startTime = System.currentTimeMillis();
 
-            GeometryJSON gj = new GeometryJSON(DECIMALS);
+            GeometryJSON gj = new GeometryJSON(decimals);
             Geometry publication = null;
             try {
                 publication = gj.read(kafkaTuple.getValue());
@@ -156,7 +195,7 @@ public class KafkaGeoIndexBolt extends BaseRichBolt {
                 String matchedStr = tupleCounter + ": Publication matched " + subscriptionCounter + " subscriptions\n";
                 String avgProcTime = "Average processing time: " + processingTime / processedPublications + " milis\n";
 
-                collector.emit(new Values(kafkaTuple.getKey(), pubStr +  matchedStr + avgProcTime));
+                collector.emit(new Values(kafkaTuple.getKey(), avgProcTime));
                 collector.ack(tuple);
 
             } catch (Exception e) {
