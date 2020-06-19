@@ -3,6 +3,12 @@ package storm.bolts;
 import hr.fer.retrofit.geofil.indexing.PartitionedSpatialIndexFactory;
 import hr.fer.retrofit.geofil.indexing.SpatialIndexFactory;
 import hr.fer.retrofit.geofil.partitioning.SpatialPartitionerFactory;
+import org.apache.storm.Config;
+import org.apache.storm.blobstore.AtomicOutputStream;
+import org.apache.storm.blobstore.BlobStoreAclHandler;
+import org.apache.storm.blobstore.ClientBlobStore;
+import org.apache.storm.blobstore.InputStreamWithMeta;
+import org.apache.storm.generated.*;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
@@ -10,6 +16,7 @@ import org.apache.storm.topology.base.BaseRichBolt;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
+import org.apache.storm.utils.Utils;
 import org.datasyslab.geospark.enums.GridType;
 import org.datasyslab.geospark.spatialPartitioning.SpatialPartitioner;
 import org.geotools.geojson.geom.GeometryJSON;
@@ -19,6 +26,7 @@ import org.locationtech.jts.index.SpatialIndex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
+import storm.util.DataLocality;
 import storm.util.KafkaTuple;
 import storm.util.TopologyConfig;
 
@@ -66,7 +74,8 @@ public class KafkaGeoIndexBolt extends BaseRichBolt {
     String kafkaOutBroker;
     String kafkaOutTopic;
 
-    boolean fromHdfs;
+    DataLocality dataLocality;
+    String sdcaKey;
     String subscriptionLocation;
 
     int decimals;
@@ -79,7 +88,8 @@ public class KafkaGeoIndexBolt extends BaseRichBolt {
         kafkaInTopic = topologyConfig.getKafkaInTopic();
         kafkaOutBroker = topologyConfig.getKafkaOutBroker();
         kafkaOutTopic = topologyConfig.getKafkaOutTopic();
-        fromHdfs = topologyConfig.isFromHdfs();
+        dataLocality = topologyConfig.getDataLocality();
+        sdcaKey = topologyConfig.getSdcaKey();
         subscriptionLocation = topologyConfig.getSubscriptionLocation();
         decimals = topologyConfig.getDecimals();
     }
@@ -90,11 +100,11 @@ public class KafkaGeoIndexBolt extends BaseRichBolt {
 
         Stream<String> lines = null;
         try {
-            if(!fromHdfs) {
+            if(dataLocality == DataLocality.LOCAL) {
                 System.out.println("Reading from local " + subscriptionLocation);
                 Path path = Paths.get(subscriptionLocation);
                 lines = Files.lines(path);
-            } else {
+            } else if(dataLocality == DataLocality.HDFS) {
                 System.out.println("Reading from hdfs " + subscriptionLocation);
                 Configuration conf = new Configuration();
                 conf.addResource(new org.apache.hadoop.fs.Path("/etc/hadoop/conf/core-site.xml"));
@@ -112,15 +122,46 @@ public class KafkaGeoIndexBolt extends BaseRichBolt {
                         // be sure to read the next line otherwise you'll get an infinite loop
                         line = br.readLine();
                     }
-                    System.out.println("Read publication: " + readLines.size());
+                    System.out.println("\n\nRead subscriptions from HDFS: " + readLines.size() + "\n\n");
                     lines = readLines.stream();
                 } finally {
                     // you should close out the BufferedReader
                     br.close();
                 }
-            }
+            } else if(dataLocality == DataLocality.SDCA) {
+                System.out.println("Reading from Storm Distributed Cache API, blob key" + sdcaKey);
+                Config stormConf = new Config();
+                stormConf.putAll(Utils.readStormConfig());
+                ClientBlobStore clientBlobStore = Utils.getClientBlobStore(stormConf);
 
-        } catch (IOException | NullPointerException | URISyntaxException e) {
+                String blobKey = sdcaKey;
+                InputStreamWithMeta blobInputStream = clientBlobStore.getBlob(blobKey);
+                BufferedReader r = new BufferedReader(new InputStreamReader(blobInputStream));
+                List<String> readLines = new LinkedList<>();
+                try {
+                    String line;
+                    line=r.readLine();
+                    while (line != null){
+                        readLines.add(line);
+                        // be sure to read the next line otherwise you'll get an infinite loop
+                        line = r.readLine();
+                    }
+                    System.out.println("\n\nRead subscriptions from SDCA: " + readLines.size() + "\n\n");
+                    lines = readLines.stream();
+                } finally {
+                    // you should close out the BufferedReader
+                    r.close();
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (NullPointerException e) {
+            e.printStackTrace();
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+        } catch (AuthorizationException e) {
+            e.printStackTrace();
+        } catch (KeyNotFoundException e) {
             e.printStackTrace();
         }
 

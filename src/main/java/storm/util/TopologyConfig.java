@@ -21,7 +21,8 @@ public class TopologyConfig {
     String kafkaOutBroker;
     String kafkaOutTopic;
 
-    boolean fromHdfs;
+    DataLocality dataLocality;
+    String sdcaKey;
     boolean local;
     String subscriptionLocation;
 
@@ -96,12 +97,20 @@ public class TopologyConfig {
         this.kafkaOutTopic = kafkaOutTopic;
     }
 
-    public boolean isFromHdfs() {
-        return fromHdfs;
+    public DataLocality getDataLocality() {
+        return dataLocality;
     }
 
-    public void setFromHdfs(boolean fromHdfs) {
-        this.fromHdfs = fromHdfs;
+    public void setDataLocality(DataLocality dataLocality) {
+        this.dataLocality = dataLocality;
+    }
+
+    public String getSdcaKey() {
+        return sdcaKey;
+    }
+
+    public void setSdcaKey(String sdcaKey) {
+        this.sdcaKey = sdcaKey;
     }
 
     public boolean isLocal() {
@@ -126,21 +135,5 @@ public class TopologyConfig {
 
     public void setDecimals(int decimals) {
         this.decimals = decimals;
-    }
-
-    @Override
-    public String toString() {
-        return "TopologyConfig{" +
-                "partitionType=" + gridType +
-                ", indexType=" + indexType +
-                ", partitions=" + partitionsNumber +
-                ", kafkaInBroker='" + kafkaInBroker + '\'' +
-                ", kafkaInTopic='" + kafkaInTopic + '\'' +
-                ", kafkaOutBroker='" + kafkaOutBroker + '\'' +
-                ", kafkaOutTopic='" + kafkaOutTopic + '\'' +
-                ", fromHdfs=" + fromHdfs +
-                ", subscriptionLocation='" + subscriptionLocation + '\'' +
-                ", decimals=" + decimals +
-                '}';
     }
 }

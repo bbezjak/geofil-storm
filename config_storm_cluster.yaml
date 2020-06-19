@@ -2,7 +2,7 @@ gridType: EQUALGRID
 # EQUALGRID HILBERT RTREE VORONOI QUADTREE KDBTREE
 indexType: QUAD_TREE
 # STR_TREE QUAD_TREE
-partitionsNumber: 1
+partitionsNumber: 16
 
 #kafka:
 #kafkaInBroker: "localhost:9092"
@@ -13,7 +13,9 @@ kafkaInTopic: geofil-data
 kafkaOutBroker: "10.19.8.217:9092"
 kafkaOutTopic: geofil-data-storm
 
-fromHdfs: true
+dataLocality: SDCA
+#LOCAL HDFS SDCA
+sdcaKey: subscriptions
 local: false
 
 #subscriptionLocation: D:\projects\diplomski\geofil-storm\subscriptions19.json

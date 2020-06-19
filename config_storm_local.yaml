@@ -13,7 +13,9 @@ kafkaOutBroker: "localhost:9092"
 #kafkaOutBroker: "10.19.8.217:9092"
 kafkaOutTopic: geofil-data-storm
 
-fromHdfs: false
+dataLocality: SDCA
+#LOCAL HDFS SDCA
+sdcaKey: subscriptions
 local: false
 
 subscriptionLocation: D:\projects\diplomski\geofil-storm\subscriptions19.json

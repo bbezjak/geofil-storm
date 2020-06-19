@@ -30,6 +30,7 @@ public class KafkaGeofilTopology {
         try {
             topologyConfig = TopologyConfig.create(args[0]);
         } catch (IOException e) {
+            e.printStackTrace();
             throw new RuntimeException("Failed to read configuration");
         }
 
