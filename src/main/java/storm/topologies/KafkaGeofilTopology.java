@@ -24,8 +24,6 @@ public class KafkaGeofilTopology {
 
         TopologyBuilder builder = new TopologyBuilder();
 
-        String topologyName = "geofil-storm-kafka";
-
         TopologyConfig topologyConfig;
         try {
             topologyConfig = TopologyConfig.create(args[0]);
@@ -33,6 +31,12 @@ public class KafkaGeofilTopology {
             e.printStackTrace();
             throw new RuntimeException("Failed to read configuration");
         }
+
+        String topologyName =
+                "geofil-storm-" +
+                        topologyConfig.getGridType() + "-" +
+                        topologyConfig.getIndexType() + "-" +
+                        topologyConfig.getPartitionsNumber();
 
         KafkaSpout kafkaSpout =
                 new KafkaSpout<>(
@@ -72,6 +76,7 @@ public class KafkaGeofilTopology {
             LocalCluster cluster = new LocalCluster();
             cluster.submitTopology(topologyName, conf, builder.createTopology());
         } else {
+            System.out.println("Submitting topology to Storm cluster");
             try {
                 StormSubmitter.submitTopology(topologyName, conf, builder.createTopology());
             }

@@ -234,7 +234,8 @@ public class KafkaGeoIndexBolt extends BaseRichBolt {
                 tupleCounter++;
                 String pubStr = publication.toString() + "\n";
                 String matchedStr = tupleCounter + ": Publication matched " + subscriptionCounter + " subscriptions\n";
-                String avgProcTime = "Average processing time: " + processingTime / processedPublications + " milis\n";
+                long avgProcTime = processingTime / processedPublications;
+                String avgProcTimeStr = "Average processing time: " + avgProcTime + " milis\n";
 
                 collector.emit(new Values(kafkaTuple.getKey(), avgProcTime));
                 collector.ack(tuple);
