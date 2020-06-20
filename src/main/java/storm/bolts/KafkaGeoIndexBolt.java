@@ -227,9 +227,9 @@ public class KafkaGeoIndexBolt extends BaseRichBolt {
                     subscriptionCounter.set(matchingPairs.size());
                 });
 
-                long endTime = System.currentTimeMillis() - startTime;
+                long time = System.currentTimeMillis() - startTime;
                 processedPublications++;
-                processingTime += endTime;
+                processingTime += time;
 
                 tupleCounter++;
                 String pubStr = publication.toString() + "\n";
@@ -237,7 +237,7 @@ public class KafkaGeoIndexBolt extends BaseRichBolt {
                 long avgProcTime = processingTime / processedPublications;
                 String avgProcTimeStr = "Average processing time: " + avgProcTime + " milis\n";
 
-                collector.emit(new Values(kafkaTuple.getKey(), avgProcTime));
+                collector.emit(new Values(kafkaTuple.getKey(), String.valueOf(avgProcTime)));
                 collector.ack(tuple);
 
             } catch (Exception e) {

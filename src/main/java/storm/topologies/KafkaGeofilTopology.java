@@ -1,5 +1,6 @@
 package storm.topologies;
 
+import hr.fer.retrofit.geofil.indexing.SpatialIndexFactory;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.storm.Config;
 import org.apache.storm.LocalCluster;
@@ -10,6 +11,7 @@ import org.apache.storm.kafka.bolt.selector.DefaultTopicSelector;
 import org.apache.storm.kafka.spout.KafkaSpout;
 import org.apache.storm.kafka.spout.KafkaSpoutConfig;
 import org.apache.storm.topology.TopologyBuilder;
+import org.datasyslab.geospark.enums.GridType;
 import storm.bolts.KafkaGeoIndexBolt;
 import storm.util.TopologyConfig;
 
@@ -30,6 +32,16 @@ public class KafkaGeofilTopology {
         } catch (IOException e) {
             e.printStackTrace();
             throw new RuntimeException("Failed to read configuration");
+        }
+
+        if(args.length == 4) {
+            GridType gridType = GridType.valueOf(args[1]);
+            SpatialIndexFactory.IndexType indexType = SpatialIndexFactory.IndexType.valueOf(args[2]);
+            Integer partitions = Integer.valueOf(args[3]);
+
+            topologyConfig.setGridType(gridType);
+            topologyConfig.setIndexType(indexType);
+            topologyConfig.setPartitionsNumber(partitions);
         }
 
         String topologyName =
