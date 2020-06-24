@@ -13,12 +13,12 @@ kafkaOutBroker: "localhost:9092"
 #kafkaOutBroker: "10.19.8.217:9092"
 kafkaOutTopic: geofil-data-storm
 
-dataLocality: SDCA
+dataLocality: LOCAL
 #LOCAL HDFS SDCA
 sdcaKey: subscriptions
-local: false
+local: true
 
-subscriptionLocation: D:\projects\diplomski\geofil-storm\subscriptions19.json
+subscriptionLocation: D:\projects\diplomski\geofil-storm\subscriptions19big.json
 #subscriptionLocation: data/subscriptions19.json
 
 decimals: 19  #do not change unless file with data are changed
