@@ -79,6 +79,8 @@ public class KafkaGeoIndexBolt extends BaseRichBolt {
     String subscriptionLocation;
 
     int decimals;
+    int batchMark;
+    int readLinesCounter = 0;
 
     public KafkaGeoIndexBolt(TopologyConfig topologyConfig) {
         gridType = topologyConfig.getGridType();
@@ -92,6 +94,7 @@ public class KafkaGeoIndexBolt extends BaseRichBolt {
         sdcaKey = topologyConfig.getSdcaKey();
         subscriptionLocation = topologyConfig.getSubscriptionLocation();
         decimals = topologyConfig.getDecimals();
+        batchMark = 1000;
     }
 
     @Override
@@ -119,6 +122,7 @@ public class KafkaGeoIndexBolt extends BaseRichBolt {
                     line=br.readLine();
                     while (line != null){
                         readLines.add(line);
+                        readLinesCounter+=1;
                         // be sure to read the next line otherwise you'll get an infinite loop
                         line = br.readLine();
                     }
@@ -145,6 +149,7 @@ public class KafkaGeoIndexBolt extends BaseRichBolt {
                         readLines.add(line);
                         // be sure to read the next line otherwise you'll get an infinite loop
                         line = r.readLine();
+                        readLinesCounter+=1;
                     }
                     System.out.println("\n\nRead subscriptions from SDCA: " + readLines.size() + "\n\n");
                     lines = readLines.stream();
@@ -162,6 +167,9 @@ public class KafkaGeoIndexBolt extends BaseRichBolt {
         } catch (AuthorizationException e) {
             e.printStackTrace();
         } catch (KeyNotFoundException e) {
+            e.printStackTrace();
+        } catch (OutOfMemoryError e) {
+            System.out.println("\n\nRead lines" + readLinesCounter + "\n\n");
             e.printStackTrace();
         }
 
@@ -237,7 +245,11 @@ public class KafkaGeoIndexBolt extends BaseRichBolt {
                 long avgProcTime = processingTime / processedPublications;
                 String avgProcTimeStr = "Average processing time: " + avgProcTime + " milis\n";
 
-                collector.emit(new Values(kafkaTuple.getKey(), String.valueOf(avgProcTime)));
+//                if(tupleCounter % batchMark == 0) {
+//                    collector.emit(new Values(kafkaTuple.getKey(), String.valueOf(avgProcTime)));
+//                }
+//                collector.emit(new Values(kafkaTuple.getKey(), String.valueOf(avgProcTime)));
+                collector.emit(new Values(String.valueOf(time)));
                 collector.ack(tuple);
 
             } catch (Exception e) {
@@ -248,6 +260,6 @@ public class KafkaGeoIndexBolt extends BaseRichBolt {
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
-        outputFieldsDeclarer.declare(new Fields("key", "message"));
+        outputFieldsDeclarer.declare(new Fields("processingTime"));
     }
 }

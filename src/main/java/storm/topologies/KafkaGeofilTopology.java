@@ -13,6 +13,7 @@ import org.apache.storm.kafka.spout.KafkaSpoutConfig;
 import org.apache.storm.topology.TopologyBuilder;
 import org.datasyslab.geospark.enums.GridType;
 import storm.bolts.KafkaGeoIndexBolt;
+import storm.bolts.SummariserBolt;
 import storm.util.TopologyConfig;
 
 import java.io.IOException;
@@ -79,9 +80,19 @@ public class KafkaGeofilTopology {
                 .withTopicSelector(new DefaultTopicSelector(topologyConfig.getKafkaOutTopic()))
                 .withTupleToKafkaMapper(new FieldNameBasedTupleToKafkaMapper());
 
-        builder.setSpout("kafkaSpout", kafkaSpout, 1);
-        builder.setBolt("geoIndexBolt", new KafkaGeoIndexBolt(topologyConfig), 1).shuffleGrouping("kafkaSpout");
-        builder.setBolt("kafkaBolt", kafkaBolt, 1).shuffleGrouping("geoIndexBolt");
+        //builder.setSpout("kafkaSpout", kafkaSpout, 1);
+        builder.setBolt("geoIndexBolt", new KafkaGeoIndexBolt(topologyConfig), 13);//.shuffleGrouping("kafkaSpout");
+        builder.setBolt("averageBolt", new SummariserBolt(), 1).shuffleGrouping("geoIndexBolt");
+        //builder.setBolt("kafkaBolt", kafkaBolt, 1).shuffleGrouping("averageBolt");
+        conf.setNumWorkers(16);
+
+
+//        int twelveGB = 12 * 1024;
+//        conf.put(Config.TOPOLOGY_WORKER_MAX_HEAP_SIZE_MB, twelveGB);
+//        conf.put(Config.WORKER_HEAP_MEMORY_MB, twelveGB);
+//        conf.put(Config.SUPERVISOR_MEMORY_CAPACITY_MB, twelveGB);
+//        conf.put(Config.WORKER_CHILDOPTS, fourGB);
+        conf.put(Config.TOPOLOGY_MESSAGE_TIMEOUT_SECS, 1200);
 
         if(topologyConfig.isLocal()) {
             System.out.println("Running topology in local cluster");
